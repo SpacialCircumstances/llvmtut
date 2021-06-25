@@ -12,7 +12,8 @@ let expr = fix (function expr ->
     let tree = open_paren *> (many expr) <* close_paren >>| function s -> Tree s in
     spaces *> (atom <|> tree) <* spaces
 )
+let program = many expr
 
-let parse code = match parse_string ~consume:All expr code with
+let parse code = match parse_string ~consume:All program code with
     | Ok v      -> v
     | Error msg -> failwith msg
