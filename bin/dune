@@ -1,0 +1,4 @@
+(executable
+ (public_name llvmtut)
+ (name main)
+ (libraries llvmtut llvm))
