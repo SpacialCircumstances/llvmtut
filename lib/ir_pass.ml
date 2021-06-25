@@ -9,7 +9,9 @@ let lower_value expr =
         | _ -> Error ("Expected value/atom, got: " ^ (to_string expr))
 
 let lower_expression expr statements = 
-    Ok (lower_value expr |> Result.get_ok, statements) (*TODO: Support nested expressions*)
+    match expr with
+        | Atom _ -> lower_value expr |> Result.map (fun value -> value, statements)
+        | _ -> Error ("Expected expression, got: " ^ (to_string expr))
 
 let rec lower_block lower_statement lower_expr exprs state =
     Result.bind state (fun state ->
