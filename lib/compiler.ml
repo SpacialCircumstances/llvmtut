@@ -11,6 +11,6 @@ let compile filename =
     let text = read_file filename in
     let ast = Parser.parse text in
     List.iter (fun e -> Ast.to_string e |> print_endline) ast;
-    match Ir_pass.lower_to_ir ast with
+    match Ir_pass.lower_program ast with
         | Ok _ir -> ()
         | Error x -> print_endline x
