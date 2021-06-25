@@ -36,6 +36,8 @@ let rec lower_basic_statement statement statements =
                     )
                 )
             )
+        | Tree ((Atom (Identifier "print")) :: expr :: []) -> 
+            Result.map (fun (value, statements) -> statements @ [ Print value ]) (lower_basic_expression expr statements)
         | Atom _ -> Error ("Expected statement, got: " ^ (to_string statement))
         | _ -> Error "not implemented"
 
