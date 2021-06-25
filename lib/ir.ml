@@ -9,8 +9,8 @@ type ir_expr =
     | Mul of value * value
 
 type statement =
-    | Print of ir_expr
-    | Set of string * ir_expr
+    | Print of value
+    | Set of string * value
 
 type block = statement list * value
 
