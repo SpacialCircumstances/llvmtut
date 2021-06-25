@@ -11,12 +11,12 @@ let lower_value expr =
 let lower_basic_expression expr statements = 
     Ok (lower_value expr |> Result.get_ok, statements) (*TODO: Support nested expressions*)
 
-let rec lower_block lower_statement exprs state =
-    Result.bind state (fun (top_levels, statements) ->
+let rec lower_top_block lower_statement lower_expr exprs state =
+    Result.bind state (fun state ->
         match exprs with
                 | [] -> Error "Empty program"
-                | [last] -> lower_basic_expression last statements |> Result.map (fun (result, statements) -> let block = statements, result in Ok { top_levels; block })
-                | head :: rest -> lower_statement head top_levels statements |> lower_block lower_statement rest)
+                | [last] -> lower_expr last state |> Result.map (fun (result, statements) -> statements, result)
+                | head :: rest -> lower_statement head state |> lower_top_block lower_statement lower_expr rest)
 
 let lower_basic_statement statement statements =
     match statement with
@@ -27,9 +27,9 @@ let lower_basic_statement statement statements =
         | Atom _ -> Error ("Expected statement, got: " ^ (to_string statement))
         | _ -> Error "not implemented"
 
-let lower_top_statement statement top_levels statements =
+let lower_top_statement statement (top_levels, statements) =
     match statement with
         | _ -> lower_basic_statement statement statements |> Result.map (fun sts -> (top_levels, sts))
 
 let lower_program ast = 
-    lower_block lower_top_statement ast (Ok ([], []))
+    lower_top_block lower_top_statement (fun expr (sts, _) -> lower_basic_expression expr sts) ast (Ok ([], []))

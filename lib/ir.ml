@@ -17,8 +17,6 @@ and block = statement list * value
 
 type top_level =
     | DefFunction of (string list) * block
+    | BasicStatement of statement
 
-type ir_module = {
-    top_levels: top_level list;
-    block: block
-}
+type ir_module = top_level list * value
