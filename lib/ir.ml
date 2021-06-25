@@ -11,8 +11,9 @@ type ir_expr =
 type statement =
     | Print of value
     | Set of string * value
+    | If of value * block * block
 
-type block = statement list * value
+and block = statement list * value
 
 type top_level =
     | DefFunction of (string list) * block
