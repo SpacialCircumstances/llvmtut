@@ -15,7 +15,7 @@ let rec lower_block lower_statement exprs state =
     Result.bind state (fun (top_levels, statements) ->
         match exprs with
                 | [] -> Error "Empty program"
-                | [last] -> lower_value last |> Result.map (fun result -> let block = statements, result in Ok { top_levels; block })
+                | [last] -> lower_basic_expression last statements |> Result.map (fun (result, statements) -> let block = statements, result in Ok { top_levels; block })
                 | head :: rest -> lower_statement head top_levels statements |> lower_block lower_statement rest)
 
 let lower_basic_statement statement statements =
