@@ -18,5 +18,7 @@ let lower_expr last_state expr =
 
 let lower_program ast = 
     match List.fold_left lower_expr (Ok ([], [])) ast with
-        | Ok (top_levels, statements) -> Ok { top_levels; statements }
+        | Ok (top_levels, statements) -> 
+            let block = (statements, (Literal Int64.zero)) in 
+            Ok { top_levels; block }
         | Error e -> Error e

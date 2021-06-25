@@ -2,20 +2,22 @@ type value =
     | Literal of int64
     | Variable of string
 
-type ir =
+type ir_expr =
     | Add of value * value
     | Sub of value * value
     | Div of value * value
     | Mul of value * value
 
 type statement =
-    | Print of ir
-    | Set of string * ir
+    | Print of ir_expr
+    | Set of string * ir_expr
+
+type block = statement list * value
 
 type top_level =
-    | Define of (string list) * (statement list)
+    | DefFunction of (string list) * block
 
 type ir_module = {
     top_levels: top_level list;
-    statements: statement list
+    block: block
 }
