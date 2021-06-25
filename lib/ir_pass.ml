@@ -2,8 +2,11 @@ open Ast
 open Ir
 open Result
 
-let lower_value _expr =
-    Ok (Literal Int64.zero)
+let lower_value expr =
+    match expr with
+        | Atom (Identifier id) -> Ok (Variable id) (*TODO: Check for variable existence*)
+        | Atom (IntLiteral il) -> Ok (Literal (Int64.of_string il))
+        | _ -> Error ("Expected value/atom, got: " ^ (to_string expr))
 
 let lower_basic_expr expr statements =
     match expr with
