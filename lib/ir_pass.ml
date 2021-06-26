@@ -3,6 +3,24 @@ open Ir
 open Result
 open Containers
 
+module Var = struct
+    type t = string
+    let compare = String.compare
+end
+
+module VarSet = CCSet.Make(Var)
+
+type defined_function = {
+    arity: int
+}
+
+module DefinedFunctionMap = CCMap.Make(String)
+
+type context = {
+    variables: VarSet.t;
+    functions: defined_function DefinedFunctionMap.t;
+}
+
 let lower_value expr =
     match expr with
         | Atom (Identifier id) -> Ok (Variable id) (*TODO: Check for variable existence*)
