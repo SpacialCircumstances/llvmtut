@@ -3,12 +3,7 @@ open Ir
 open Result
 open Containers
 
-module Var = struct
-    type t = string
-    let compare = String.compare
-end
-
-module VarSet = CCSet.Make(Var)
+module VarSet = CCSet.Make(String)
 
 type defined_function = {
     arity: int
@@ -16,10 +11,40 @@ type defined_function = {
 
 module DefinedFunctionMap = CCMap.Make(String)
 
-type context = {
-    variables: VarSet.t;
-    functions: defined_function DefinedFunctionMap.t;
-}
+module Context = struct
+    type correct_context = {
+        variables: VarSet.t;
+        functions: defined_function DefinedFunctionMap.t;
+        statements: statement list;
+        top_levels: top_level list;
+    }
+    type t = 
+        | Correct of correct_context
+        | Err of string
+    let empty = Correct {
+        variables = VarSet.empty;
+        functions = DefinedFunctionMap.empty;
+        statements = List.empty;
+        top_levels = List.empty;
+    }
+    let with_error _ctx error = Err error
+    let map apply ctx =
+        match ctx with
+            | Correct ctx -> Correct (apply ctx)
+            | Err e -> Err e
+    let bind apply ctx =
+        match ctx with
+            | Correct ctx -> apply ctx
+            | Err e -> Err e
+    let from_result res = 
+        match res with
+            | Ok ctx -> ctx
+            | Error e -> Err e
+    let add_statement ctx statement = map (fun ctx -> { ctx with statements = ctx.statements @ [statement] }) ctx
+    let add_top_level ctx top_level = map (fun ctx -> { ctx with top_levels = ctx.top_levels @ [top_level] }) ctx
+    let add_variable ctx name = map (fun ctx -> { ctx with variables = VarSet.add name ctx.variables }) ctx
+    let add_function ctx name func = map (fun ctx -> { ctx with functions = DefinedFunctionMap.add name func ctx.functions }) ctx
+end
 
 let lower_value expr =
     match expr with
@@ -27,44 +52,51 @@ let lower_value expr =
         | Atom (IntLiteral il) -> Ok (Literal (Int64.of_string_exn il))
         | _ -> Error ("Expected value/atom, got: " ^ (to_string expr))
 
-let lower_expression expr statements = 
+let lower_expression expr ctx = 
     match expr with
-        | Atom _ -> lower_value expr |> Result.map (fun value -> value, statements)
-        | _ -> Error ("Expected expression, got: " ^ (to_string expr))
+        | Atom _ -> lower_value expr, ctx
+        | _ -> Error ("Expected expression, got: " ^ (to_string expr)), ctx
 
-let rec lower_block lower_statement lower_expr exprs state =
-    Result.(>>=) state (fun state ->
-        match exprs with
-                | [] -> Error "Empty program"
-                | [last] -> lower_expr last state |> Result.map (fun (result, statements) -> statements, result)
-                | head :: rest -> lower_statement head state |> lower_block lower_statement lower_expr rest)
+let rec lower_block lower_statement lower_expr exprs ctx =
+    match exprs with
+        | [] -> Error "Empty program", ctx
+        | [last] -> lower_expr last ctx
+        | head :: rest -> lower_statement head ctx |> lower_block lower_statement lower_expr rest
 
-let lower_do_block lower_statement expr statements =
+let lower_do_block lower_statement expr ctx =
     match expr with
-        | Tree ((Atom (Identifier "do")) :: nodes) -> lower_block lower_statement lower_expression nodes (Ok statements)
-        | _ -> lower_expression expr statements |> Result.map (fun (a, b) -> b, a)
+        | Tree ((Atom (Identifier "do")) :: nodes) -> lower_block lower_statement lower_expression nodes ctx
+        | _ -> lower_expression expr ctx
 
-let rec lower_basic_statement statement statements =
+let lower_basic_statement statement ctx =
     match statement with
-        | Tree [] -> Ok statements
+        | Tree [] -> ctx
         | Tree ((Atom (Identifier "def")) :: (Atom (Identifier name)) :: expr :: []) -> 
-            lower_expression expr statements |> Result.map (fun (value, statements) -> statements @ [ Set (name, value) ])
+            let (value, ctx) = lower_expression expr ctx in
+            Result.map (fun value ->  Set (name, value) |> Context.add_statement ctx) value |> Context.from_result
         | Tree ((Atom (Identifier "if")) :: condition :: if_true :: if_false :: []) ->
-            Result.(>>=) (lower_expression condition statements) (fun (l_cond, statements) ->
+            let (_l_cond, ctx) = lower_expression condition ctx in
+            let (_l_if_true, _true_ctx) = lower_expression if_true ctx in
+            let (_l_if_false, _false_ctx) = lower_expression if_false ctx in
+            ctx (*TODO*)
+            (*Result.(>>=) () (fun (l_cond, statements) ->
                 Result.(>>=) (lower_do_block lower_basic_statement if_true statements) (fun l_if_true ->
                     Result.(>>=) (lower_do_block lower_basic_statement if_false statements) (fun l_if_false ->
                         Ok (statements @ [ If (l_cond, l_if_true, l_if_false) ])
                     )
                 )
-            )
+            )*)
         | Tree ((Atom (Identifier "print")) :: expr :: []) -> 
-            Result.map (fun (value, statements) -> statements @ [ Print value ]) (lower_expression expr statements)
-        | Atom _ -> Error ("Expected statement, got: " ^ (to_string statement))
-        | _ -> Error "not implemented"
+            let value, ctx = lower_expression expr ctx in
+            Result.map (fun value -> Print value |> Context.add_statement ctx) value |> Context.from_result
+        | Atom _ -> Context.with_error ctx ("Expected statement, got: " ^ (to_string statement))
+        | _ -> Context.with_error ctx "not implemented"
 
-let lower_top_statement statement (top_levels, statements) =
+let lower_top_statement statement ctx =
     match statement with
-        | _ -> lower_basic_statement statement statements |> Result.map (fun sts -> (top_levels, sts))
+        | _ -> lower_basic_statement statement ctx
 
 let lower_program ast = 
-    lower_block lower_top_statement (fun expr (sts, _) -> lower_expression expr sts) ast (Ok ([], []))
+    match lower_block lower_top_statement (fun expr ctx -> lower_expression expr ctx) ast Context.empty with
+        | Ok (value), ctx -> Ok (value, ctx)
+        | Error (e), ctx -> Error (Context.with_error ctx e)
