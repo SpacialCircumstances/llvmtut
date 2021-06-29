@@ -25,7 +25,7 @@ let lower_do_block lower_statement expr ctx =
         | Tree ((Atom (Identifier "do")) :: nodes) -> lower_block lower_statement lower_expression nodes ctx
         | _ -> lower_expression expr ctx
 
-let lower_basic_statement statement ctx =
+let rec lower_basic_statement statement ctx =
     match statement with
         | Tree [] -> ctx
         | Tree ((Atom (Identifier "def")) :: (Atom (Identifier name)) :: expr :: []) -> 
@@ -33,17 +33,13 @@ let lower_basic_statement statement ctx =
             let ctx = Context.add_variable ctx name in
             Result.map (fun value ->  Set (name, value) |> Context.add_statement ctx) value |> Context.from_result
         | Tree ((Atom (Identifier "if")) :: condition :: if_true :: if_false :: []) ->
-            let (_l_cond, ctx) = lower_expression condition ctx in
-            let (_l_if_true, _true_ctx) = lower_expression if_true ctx in
-            let (_l_if_false, _false_ctx) = lower_expression if_false ctx in
-            ctx (*TODO*)
-            (*Result.(>>=) () (fun (l_cond, statements) ->
-                Result.(>>=) (lower_do_block lower_basic_statement if_true statements) (fun l_if_true ->
-                    Result.(>>=) (lower_do_block lower_basic_statement if_false statements) (fun l_if_false ->
-                        Ok (statements @ [ If (l_cond, l_if_true, l_if_false) ])
-                    )
-                )
-            )*)
+            let (l_cond, ctx) = lower_expression condition ctx in
+            let (l_if_true, true_ctx) = lower_do_block lower_basic_statement if_true (Context.create_child_context ctx) in
+            let (l_if_false, false_ctx) = lower_do_block lower_basic_statement if_false (Context.create_child_context ctx) in
+            Result.map (fun (l_cond, (l_if_true, l_if_false)) ->
+                let st = If (l_cond, (Context.get_statements true_ctx, l_if_true), (Context.get_statements false_ctx, l_if_false)) in
+                Context.add_statement ctx st
+            ) (Result.(and+) l_cond (Result.(and+) l_if_true l_if_false)) |> Context.from_result
         | Tree ((Atom (Identifier "print")) :: expr :: []) -> 
             let value, ctx = lower_expression expr ctx in
             Result.map (fun value -> Print value |> Context.add_statement ctx) value |> Context.from_result

@@ -73,4 +73,8 @@ module Context = struct
                                                         | true -> Ok name
                                                         | false -> Error ("Variable " ^ name ^ " does not exist"))
                                     | Err e -> Error e
+    let create_child_context ctx = map (fun ctx -> { ctx with top_levels = List.empty; statements = List.empty }) ctx
+    let get_statements ctx = match ctx with
+                                | Correct corr -> corr.statements
+                                | Err _e -> []
 end
