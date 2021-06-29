@@ -10,10 +10,12 @@ type ir_expr =
     | Sub of value * value
     | Div of value * value
     | Mul of value * value
+    | FunctionCall of string * value list
+    | Value of value
 
 type statement =
     | Print of value
-    | Set of string * value
+    | Set of string * ir_expr
     | If of value * block * block
 
 and block = statement list * value
@@ -38,6 +40,7 @@ module Context = struct
         functions: defined_function DefinedFunctionMap.t;
         statements: statement list;
         top_levels: top_level list;
+        counter: int;
     }
     type t = 
         | Correct of correct_context
@@ -47,6 +50,7 @@ module Context = struct
         functions = DefinedFunctionMap.empty;
         statements = List.empty;
         top_levels = List.empty;
+        counter = 0;
     }
     let with_error _ctx error = Err error
     let map apply ctx =
@@ -77,4 +81,14 @@ module Context = struct
     let get_statements ctx = match ctx with
                                 | Correct corr -> corr.statements
                                 | Err _e -> []
+    let lookup_function ctx funcname = match ctx with
+                                        | Correct ctx -> (match DefinedFunctionMap.find_opt funcname ctx.functions with
+                                                            | None -> Error ("Function " ^ funcname ^ " not found")
+                                                            | Some func -> Ok func)
+                                        | Err e -> Error e
+    let next_temp ctx = match ctx with
+                            | Correct ctx -> 
+                                let c = ctx.counter in 
+                                Some ("temp" ^ (Int.to_string c)), Correct { ctx with counter = c + 1 }
+                            | Err _ -> None, ctx
 end
