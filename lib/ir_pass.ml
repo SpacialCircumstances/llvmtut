@@ -76,6 +76,7 @@ let lower_basic_statement statement ctx =
         | Tree [] -> ctx
         | Tree ((Atom (Identifier "def")) :: (Atom (Identifier name)) :: expr :: []) -> 
             let (value, ctx) = lower_expression expr ctx in
+            let ctx = Context.add_variable ctx name in
             Result.map (fun value ->  Set (name, value) |> Context.add_statement ctx) value |> Context.from_result
         | Tree ((Atom (Identifier "if")) :: condition :: if_true :: if_false :: []) ->
             let (_l_cond, ctx) = lower_expression condition ctx in
