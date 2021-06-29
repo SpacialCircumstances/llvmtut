@@ -47,17 +47,22 @@ module Context = struct
     let to_result ctx = match ctx with
                         | Correct ctx -> Ok ctx
                         | Err e -> Error e
+    let lookup_variable ctx name = match ctx with
+                                    | Correct ctx -> (match VarSet.mem name ctx.variables with
+                                                        | true -> Ok name
+                                                        | false -> Error ("Variable " ^ name ^ " does not exist"))
+                                    | Err e -> Error e
 end
 
-let lower_value expr =
+let lower_value expr ctx =
     match expr with
-        | Atom (Identifier id) -> Ok (Variable id) (*TODO: Check for variable existence*)
-        | Atom (IntLiteral il) -> Ok (Literal (Int64.of_string_exn il))
-        | _ -> Error ("Expected value/atom, got: " ^ (to_string expr))
+        | Atom (Identifier id) -> Result.map (fun name -> Variable name) (Context.lookup_variable ctx id), ctx
+        | Atom (IntLiteral il) -> Ok (Literal (Int64.of_string_exn il)), ctx
+        | _ -> let err = "Expected value/atom, got: " ^ (to_string expr) in Error err, (Context.with_error ctx err)
 
 let lower_expression expr ctx = 
     match expr with
-        | Atom _ -> lower_value expr, ctx
+        | Atom _ -> lower_value expr ctx
         | _ -> Error ("Expected expression, got: " ^ (to_string expr)), ctx
 
 let rec lower_block lower_statement lower_expr exprs ctx =
