@@ -13,4 +13,4 @@ let compile filename =
     List.iter (fun e -> Ast.to_string e |> print_endline) ast;
     match Ir_pass.lower_program ast with
         | Ok _ir -> ()
-        | Error _x -> () (*TODO*)
+        | Error x -> print_endline x

@@ -44,6 +44,9 @@ module Context = struct
     let add_top_level ctx top_level = map (fun ctx -> { ctx with top_levels = ctx.top_levels @ [top_level] }) ctx
     let add_variable ctx name = map (fun ctx -> { ctx with variables = VarSet.add name ctx.variables }) ctx
     let add_function ctx name func = map (fun ctx -> { ctx with functions = DefinedFunctionMap.add name func ctx.functions }) ctx
+    let to_result ctx = match ctx with
+                        | Correct ctx -> Ok ctx
+                        | Err e -> Error e
 end
 
 let lower_value expr =
@@ -97,6 +100,5 @@ let lower_top_statement statement ctx =
         | _ -> lower_basic_statement statement ctx
 
 let lower_program ast = 
-    match lower_block lower_top_statement (fun expr ctx -> lower_expression expr ctx) ast Context.empty with
-        | Ok (value), ctx -> Ok (value, ctx)
-        | Error (e), ctx -> Error (Context.with_error ctx e)
+    let value, ctx = lower_block lower_top_statement (fun expr ctx -> lower_expression expr ctx) ast Context.empty in
+    Result.(and+) value (Context.to_result ctx)
