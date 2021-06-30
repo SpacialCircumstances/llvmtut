@@ -5,16 +5,16 @@ open Containers
 
 let lower_value expr ctx =
     match expr with
-        | Atom (Identifier id) -> Result.map (fun name -> Variable name) (Context.lookup_variable ctx id), ctx
+        | Atom (Identifier id) -> let res, ctx = Context.lookup_variable ctx id in Result.map (fun () -> Variable id) res, ctx
         | Atom (IntLiteral il) -> Ok (Literal (Int64.of_string_exn il)), ctx
         | _ -> let err = "Expected value/atom, got: " ^ (to_string expr) in Error err, (Context.with_error ctx err)
 
 let function_call funcname args ctx =
     match Context.lookup_function ctx funcname with
-        | Ok func -> if func.arity = List.length args then
+        | Ok func, ctx -> if func.arity = List.length args then
                         Error "not implemented", ctx
                     else let e = "Function " ^ funcname ^ " has " ^ (Int.to_string func.arity) ^ " arguments, but got " ^ (List.length args |> Int.to_string) in Error e, Context.with_error ctx e
-        | Error e -> Error e, Context.with_error ctx e
+        | Error e, ctx -> Error e, ctx
 
 let lower_expression expr ctx = 
     match expr with
@@ -24,19 +24,17 @@ let lower_expression expr ctx =
 
 let lower_set name expr ctx =
     let (expr, ctx) = lower_expression expr ctx in
-            let ctx = Context.add_variable ctx name in
-            Result.map (fun expr ->  Set (name, expr) |> Context.add_statement ctx) expr |> Context.from_result
+        match expr with
+            | Ok expr ->
+                let ctx = Context.add_variable ctx name in
+                Context.add_statement ctx (Set (name, expr))
+            | Error e -> Context.with_error ctx e
 
-let lower_expr_to_value expr ctx = let name, ctx = Context.next_temp ctx in
-                                (match name with
-                                    | None -> Error "", ctx
-                                    | Some name -> 
-                                        let ctx = lower_set name expr ctx in
-                                        Ok (Variable name), ctx)
+let lower_expr_to_value expr ctx = let name, ctx = Context.next_temp ctx in Variable name, lower_set name expr ctx
 
 let rec lower_block lower_statement lower_expr exprs ctx =
     match exprs with
-        | [] -> Error "Empty program", ctx
+        | [] -> ErrValue, Context.with_error ctx "Empty program"
         | [last] -> lower_expr_to_value last ctx
         | head :: rest -> lower_statement head ctx |> lower_block lower_statement lower_expr rest
 
@@ -54,13 +52,12 @@ let rec lower_basic_statement statement ctx =
             let (l_cond, ctx) = lower_expr_to_value condition ctx in
             let (l_if_true, true_ctx) = lower_do_block lower_basic_statement if_true (Context.create_child_context ctx) in
             let (l_if_false, false_ctx) = lower_do_block lower_basic_statement if_false (Context.create_child_context ctx) in
-            Result.map (fun (l_cond, (l_if_true, l_if_false)) ->
-                let st = If (l_cond, (Context.get_statements true_ctx, l_if_true), (Context.get_statements false_ctx, l_if_false)) in
-                Context.add_statement ctx st
-            ) (Result.(and+) l_cond (Result.(and+) l_if_true l_if_false)) |> Context.from_result
+            let st = If (l_cond, (Context.get_statements true_ctx, l_if_true), (Context.get_statements false_ctx, l_if_false)) in
+            let ctx = ctx |> Context.integrate_child_context_errors true_ctx |> Context.integrate_child_context_errors false_ctx in 
+            Context.add_statement ctx st
         | Tree ((Atom (Identifier "print")) :: expr :: []) -> 
             let value, ctx = lower_expr_to_value expr ctx in
-            Result.map (fun value -> Print value |> Context.add_statement ctx) value |> Context.from_result
+            Print value |> Context.add_statement ctx
         | Atom _ -> Context.with_error ctx ("Expected statement, got: " ^ (to_string statement))
         | _ -> Context.with_error ctx "not implemented"
 
@@ -69,5 +66,6 @@ let lower_top_statement statement ctx =
         | _ -> lower_basic_statement statement ctx
 
 let lower_program ast = 
-    let value, ctx = lower_block lower_top_statement (fun expr ctx -> lower_expression expr ctx) ast Context.empty in
-    Result.(and+) value (Context.to_result ctx)
+    (* TODO *)
+    let _value, ctx = lower_block lower_top_statement (fun expr ctx -> lower_expression expr ctx) ast Context.empty in
+    Context.to_result ctx
