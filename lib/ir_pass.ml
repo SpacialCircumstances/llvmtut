@@ -64,8 +64,27 @@ let rec lower_basic_statement statement ctx =
         | Atom _ -> Context.with_error ctx ("Expected statement, got: " ^ (to_string statement))
         | _ -> Context.with_error ctx "not implemented"
 
+let get_parameters params_nodes ctx =
+    let folder ctx node =
+        match node with
+            | Atom (Identifier param_name) -> (ctx, Some param_name)
+            | _ -> Context.with_error ctx ("Unexpected expression " ^ (to_string node) ^ " in function definition parameters"), None in
+    let ctx, param_names = List.fold_map folder ctx params_nodes in
+    List.filter_map (fun a -> a) param_names, ctx
+
+let create_function_context funcname param_names ctx =
+    let fctx = Context.create_child_context ctx in
+    let fctx = Context.add_function fctx funcname { arity = List.length param_names } in
+    List.fold_left (fun fctx param -> Context.add_variable fctx param) fctx param_names
+
 let lower_top_statement statement ctx =
     match statement with
+        | Tree ((Atom (Identifier "defn")) :: (Atom (Identifier funcname)) :: (Tree params) :: body :: []) -> 
+            let param_names, ctx = get_parameters params ctx in
+            let body_ctx = create_function_context funcname param_names ctx in
+            let value, body_ctx = lower_do_block lower_basic_statement body body_ctx in
+            let func_block = Context.get_statements body_ctx, value in
+            Context.add_top_level ctx (DefFunction (param_names, func_block))
         | _ -> lower_basic_statement statement ctx
 
 let lower_program ast = 
