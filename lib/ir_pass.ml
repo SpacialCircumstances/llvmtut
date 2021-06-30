@@ -88,6 +88,5 @@ let lower_top_statement statement ctx =
         | _ -> lower_basic_statement statement ctx
 
 let lower_program ast = 
-    (* TODO *)
-    let _value, ctx = lower_block lower_top_statement (fun expr ctx -> lower_expression expr ctx) ast Context.empty in
-    Context.to_result ctx
+    let value, ctx = lower_block lower_top_statement (fun expr ctx -> lower_expression expr ctx) ast Context.empty in
+    Context.to_result ctx value

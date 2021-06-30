@@ -23,9 +23,12 @@ and block = statement list * value
 
 type top_level =
     | DefFunction of (string list) * block
-    | BasicStatement of statement
 
-type ir_module = top_level list * value
+type ir_module = {
+    statements: statement list;
+    top_levels: top_level list;
+    retval: value;
+}
 
 module VarSet = CCSet.Make(String)
 
@@ -57,8 +60,12 @@ module Context = struct
     let add_top_level ctx top_level = { ctx with top_levels = ctx.top_levels @ [top_level] }
     let add_variable ctx name = { ctx with variables = VarSet.add name ctx.variables }
     let add_function ctx name func = { ctx with functions = DefinedFunctionMap.add name func ctx.functions }
-    let to_result ctx = match ctx.errors with
-                        | [] -> Ok ctx
+    let to_result ctx value = match ctx.errors with
+                        | [] -> Ok {
+                            statements = ctx.statements;
+                            top_levels = ctx.top_levels;
+                            retval = value
+                        }
                         | errors -> Error errors
     let lookup_variable ctx name = match VarSet.mem name ctx.variables with
                                     | true -> Ok (), ctx
