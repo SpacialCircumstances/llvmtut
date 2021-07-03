@@ -38,6 +38,13 @@ type defined_function = {
 
 module DefinedFunctionMap = CCMap.Make(String)
 
+let builtin_functions = DefinedFunctionMap.of_list [
+    "+", { arity = 2 };
+    "-", { arity = 2 };
+    "*", { arity = 2 };
+    "/", { arity = 2 }
+]
+
 module Context = struct
     type t = {
         variables: VarSet.t;
@@ -49,7 +56,7 @@ module Context = struct
     }
     let empty = {
         variables = VarSet.empty;
-        functions = DefinedFunctionMap.empty;
+        functions = builtin_functions;
         statements = List.empty;
         top_levels = List.empty;
         counter = 0;

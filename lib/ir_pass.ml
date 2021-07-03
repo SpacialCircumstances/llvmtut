@@ -15,7 +15,12 @@ let function_call funcname args lower_expr ctx =
     match Context.lookup_function ctx funcname with
         | Ok func, ctx -> if func.arity = List.length args then
                         let ctx, args_values = List.fold_map (fun ctx arg -> lower_expr arg ctx |> swap) ctx args in
-                        Ok (FunctionCall (funcname, args_values)), ctx
+                        match funcname with
+                            | "+" -> Ok (Add (List.nth args_values 0, List.nth args_values 1)), ctx
+                            | "-" -> Ok (Sub (List.nth args_values 0, List.nth args_values 1)), ctx
+                            | "*" -> Ok (Mul (List.nth args_values 0, List.nth args_values 1)), ctx
+                            | "/" -> Ok (Div (List.nth args_values 0, List.nth args_values 1)), ctx
+                            | _ -> Ok (FunctionCall (funcname, args_values)), ctx
                     else let e = "Function " ^ funcname ^ " has " ^ (Int.to_string func.arity) ^ " arguments, but got " ^ (List.length args |> Int.to_string) in Error e, Context.with_error ctx e
         | Error e, ctx -> Error e, ctx
 
