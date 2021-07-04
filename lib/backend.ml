@@ -18,7 +18,15 @@ let compile_value ctx v = match v with
     | Literal i -> const_int number_type (Int64.to_int i)
     | Variable name -> ValueTable.find ctx.values name
 
-let compile_statement _ctx _st = ()
+let compile_expr ctx expr = match expr with
+    | Value v -> compile_value ctx v
+    | _ -> failwith "Not implemented"
+
+let compile_statement ctx st = match st with
+    | Set (name, expr) -> 
+        let value = compile_expr ctx expr in
+        ValueTable.add ctx.values name value
+    | _ -> failwith "Not implemented"
 
 let compile_top_level _ctx tl = match tl with
     | DefFunction (_params, _block) -> () 
