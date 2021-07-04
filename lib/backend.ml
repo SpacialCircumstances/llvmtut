@@ -1,4 +1,5 @@
 open Llvm
+open Llvm_target
 open Ir
 open Containers
 
@@ -46,4 +47,13 @@ let generate_native_code irmod =
     let _ = List.iter (compile_top_level ctx) irmod.top_levels in
     let _mf = compile_main_function ctx irmod in
     let _ = dump_module mdl in
+    let tt = Target.default_triple () in
+    Llvm_all_backends.initialize ();
+    print_endline ("Target triple: " ^ tt);
+    let target = Target.by_triple tt in
+    let tm = TargetMachine.create target ~triple:tt in
+    let data_layout = TargetMachine.data_layout tm in
+    set_data_layout (DataLayout.as_string data_layout) mdl;
+    set_target_triple tt mdl;
+    TargetMachine.emit_to_file mdl CodeGenFileType.ObjectFile "test.obj" tm;
     ()
