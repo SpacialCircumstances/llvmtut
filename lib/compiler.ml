@@ -12,5 +12,5 @@ let compile filename =
     let ast = Parser.parse text in
     List.iter (fun e -> Ast.to_string e |> print_endline) ast;
     match Ir_pass.lower_program ast with
-        | Ok _ir -> ()
+        | Ok ir -> Backend.generate_native_code ir
         | Error errs -> List.iter print_endline errs

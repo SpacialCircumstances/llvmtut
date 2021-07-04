@@ -13,13 +13,29 @@ type ctx = {
     values: llvalue ValueTable.t
 }
 
+let compile_value ctx v = match v with
+    | ErrValue -> failwith "Unexpected ErrValue"
+    | Literal i -> const_int number_type (Int64.to_int i)
+    | Variable name -> ValueTable.find ctx.values name
+
 let compile_statement _ctx _st = ()
 
 let compile_top_level _ctx tl = match tl with
     | DefFunction (_params, _block) -> () 
 
+let compile_main_function ctx irmod =
+    let mf = declare_function "main" (function_type number_type Array.empty) mdl in
+    let block = append_block context "entry" mf in
+    position_at_end block builder;
+    List.iter (compile_statement ctx) irmod.statements;
+    let ret = compile_value ctx irmod.retval in
+    let _ = build_ret ret builder in
+    Llvm_analysis.assert_valid_function mf;
+    mf
+
 let generate_native_code irmod = 
     let ctx = { values = ValueTable.create 20 } in
-    List.iter (compile_top_level ctx) irmod.top_levels;
-    List.iter (compile_statement ctx) irmod.statements;
+    let _ = List.iter (compile_top_level ctx) irmod.top_levels in
+    let _mf = compile_main_function ctx irmod in
+    let _ = dump_module mdl in
     ()
