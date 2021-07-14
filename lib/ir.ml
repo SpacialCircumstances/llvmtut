@@ -22,7 +22,7 @@ type statement =
 and block = statement list * value
 
 type top_level =
-    | DefFunction of (string list) * block
+    | DefFunction of string * (string list) * block
 
 type ir_module = {
     statements: statement list;

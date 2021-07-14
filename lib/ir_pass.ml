@@ -89,7 +89,7 @@ let lower_top_statement statement ctx =
             let body_ctx = create_function_context funcname param_names ctx in
             let value, body_ctx = lower_do_block lower_basic_statement body body_ctx in
             let func_block = Context.get_statements body_ctx, value in
-            Context.add_top_level ctx (DefFunction (param_names, func_block))
+            Context.add_top_level ctx (DefFunction (funcname, param_names, func_block))
         | _ -> lower_basic_statement statement ctx
 
 let lower_program ast = 

@@ -61,17 +61,17 @@ let compile_function ctx fname args statements retval =
     List.iter (compile_statement ctx) statements;
     let ret = compile_value ctx retval in
     let _ = build_ret ret builder in
-    Llvm_analysis.assert_valid_function f;
-    f
+    Llvm_analysis.assert_valid_function f
 
-let compile_top_level _ctx tl = match tl with
-    | DefFunction (_params, _block) -> ()
+let compile_top_level ctx tl = match tl with
+    | DefFunction (fname, params, (statements, retval)) -> 
+        compile_function ctx fname params statements retval
 
 let generate_native_code irmod = 
     let ctx = { values = ValueTable.create 20 } in
-    let _ = List.iter (compile_top_level ctx) irmod.top_levels in
-    let _mf = compile_function ctx "main" [] irmod.statements irmod.retval in
-    let _ = dump_module mdl in
+    List.iter (compile_top_level ctx) irmod.top_levels;
+    compile_function ctx "main" [] irmod.statements irmod.retval;
+    dump_module mdl;
     let tt = Target.default_triple () in
     Llvm_all_backends.initialize ();
     print_endline ("Target triple: " ^ tt);
