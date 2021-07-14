@@ -45,23 +45,26 @@ let compile_statement ctx st = match st with
         ValueTable.add ctx.values name value
     | _ -> failwith "Not implemented"
 
-let compile_top_level _ctx tl = match tl with
-    | DefFunction (_params, _block) -> () 
-
-let compile_main_function ctx irmod =
-    let mf = declare_function "main" (function_type number_type Array.empty) mdl in
-    let block = append_block context "entry" mf in
+let compile_function ctx fname args statements retval =
+    let f = declare_function fname (function_type number_type (Array.make (List.length args) number_type)) mdl in
+    Array.iteri (fun idx a -> let av = List.nth args idx in
+                                set_value_name av a;
+                                ValueTable.add ctx.values av a) (params f);
+    let block = append_block context "entry" f in
     position_at_end block builder;
-    List.iter (compile_statement ctx) irmod.statements;
-    let ret = compile_value ctx irmod.retval in
+    List.iter (compile_statement ctx) statements;
+    let ret = compile_value ctx retval in
     let _ = build_ret ret builder in
-    Llvm_analysis.assert_valid_function mf;
-    mf
+    Llvm_analysis.assert_valid_function f;
+    f
+
+let compile_top_level _ctx tl = match tl with
+    | DefFunction (_params, _block) -> ()
 
 let generate_native_code irmod = 
     let ctx = { values = ValueTable.create 20 } in
     let _ = List.iter (compile_top_level ctx) irmod.top_levels in
-    let _mf = compile_main_function ctx irmod in
+    let _mf = compile_function ctx "main" [] irmod.statements irmod.retval in
     let _ = dump_module mdl in
     let tt = Target.default_triple () in
     Llvm_all_backends.initialize ();
