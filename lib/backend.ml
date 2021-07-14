@@ -21,6 +21,22 @@ let compile_value ctx v = match v with
 
 let compile_expr ctx expr = match expr with
     | Value v -> compile_value ctx v
+    | Add (v1, v2) -> 
+        let v1 = compile_value ctx v1 in
+        let v2 = compile_value ctx v2 in
+        build_add v1 v2 "addtmp" builder
+    | Sub (v1, v2) -> 
+        let v1 = compile_value ctx v1 in
+        let v2 = compile_value ctx v2 in
+        build_sub v1 v2 "subtmp" builder
+    | Mul (v1, v2) ->
+        let v1 = compile_value ctx v1 in
+        let v2 = compile_value ctx v2 in
+        build_mul v1 v2 "multmp" builder
+    | Div (v1, v2) -> 
+        let v1 = compile_value ctx v1 in
+        let v2 = compile_value ctx v2 in
+        build_udiv v1 v2 "divtmp" builder
     | _ -> failwith "Not implemented"
 
 let compile_statement ctx st = match st with
