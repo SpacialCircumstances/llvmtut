@@ -37,7 +37,13 @@ let compile_expr ctx expr = match expr with
         let v1 = compile_value ctx v1 in
         let v2 = compile_value ctx v2 in
         build_udiv v1 v2 "divtmp" builder
-    | _ -> failwith "Not implemented"
+    | FunctionCall (name, args) ->
+        let func = match lookup_function name mdl with
+                    | Some f -> f
+                    | None -> failwith ("Function " ^ name ^ " not found in LLVM module")
+        in
+        let args = List.map (compile_value ctx) args |> Array.of_list in
+        build_call func args "calltmp" builder
 
 let compile_statement ctx st = match st with
     | Set (name, expr) -> 
