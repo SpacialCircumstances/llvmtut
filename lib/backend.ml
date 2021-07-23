@@ -73,8 +73,8 @@ let compile_top_level ctx tl = match tl with
         compile_function ctx fname params statements retval
 
 let generate_native_code irmod = 
-    declare_function "sl_print" (function_type number_type [|void_type|]) mdl |> ignore;
-    declare_function "sl_read" (function_type void_type  [|number_type|]) mdl |> ignore;
+    let sl_print = declare_function "sl_print" (function_type void_type [|number_type|]) mdl in
+    let sl_read = declare_function "sl_read" (function_type number_type  [|void_type|]) mdl in
     let builtins = [
         ("sl_print", sl_print);
         ("sl_read", sl_read)
