@@ -53,7 +53,7 @@ let compile_statement ctx st = match st with
         ValueTable.add ctx.values name value
     | Print value ->
         let value = compile_value ctx value in
-        build_call (ValueTable.find ctx.builtins "sl_print") [|value|] "printtmp" builder |> ignore
+        build_call (ValueTable.find ctx.builtins "sl_print") [|value|] "" builder |> ignore
     | _ -> failwith "Not implemented"
 
 let compile_function ctx fname args statements retval =
