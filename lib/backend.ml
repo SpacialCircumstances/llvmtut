@@ -12,7 +12,8 @@ let void_type = void_type context
 module ValueTable = CCHashtbl.Make(String)
 
 type ctx = {
-    values: llvalue ValueTable.t
+    values: llvalue ValueTable.t;
+    builtins: llvalue ValueTable.t;
 }
 
 let compile_value ctx v = match v with
@@ -50,6 +51,9 @@ let compile_statement ctx st = match st with
     | Set (name, expr) -> 
         let value = compile_expr ctx expr in
         ValueTable.add ctx.values name value
+    | Print value ->
+        let value = compile_value ctx value in
+        build_call (ValueTable.find ctx.builtins "sl_print") [|value|] "printtmp" builder |> ignore
     | _ -> failwith "Not implemented"
 
 let compile_function ctx fname args statements retval =
@@ -71,7 +75,11 @@ let compile_top_level ctx tl = match tl with
 let generate_native_code irmod = 
     declare_function "sl_print" (function_type number_type [|void_type|]) mdl |> ignore;
     declare_function "sl_read" (function_type void_type  [|number_type|]) mdl |> ignore;
-    let ctx = { values = ValueTable.create 20 } in
+    let builtins = [
+        ("sl_print", sl_print);
+        ("sl_read", sl_read)
+    ] in
+    let ctx = { values = ValueTable.create 20; builtins = ValueTable.of_list builtins } in
     List.iter (compile_top_level ctx) irmod.top_levels;
     compile_function ctx "main" [] irmod.statements irmod.retval;
     dump_module mdl;
