@@ -2,7 +2,7 @@
 #include <stdlib.h>
 
 extern void sl_print(long v) {
-    printf("%li", v);
+    printf("%li\n", v);
 }
 
 extern long sl_read() {
