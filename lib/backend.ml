@@ -46,6 +46,9 @@ let compile_expr ctx expr = match expr with
         in
         let args = List.map (compile_value ctx) args |> Array.of_list in
         build_call func args "calltmp" builder
+    | Read ->
+        let rf = ValueTable.find ctx.builtins "sl_read" in
+        build_call rf [||] "readtmp" builder
 
 let compile_statement ctx st = match st with
     | Set (name, expr) -> 

@@ -27,6 +27,7 @@ let function_call funcname args lower_expr ctx =
 let rec lower_expression expr ctx = 
     match expr with
         | Atom _ -> let value, ctx = lower_value expr ctx in Result.map (fun v -> Value v) value, ctx
+        | Tree ((Atom (Identifier "read")) :: []) -> Ok Read, ctx
         | Tree ((Atom (Identifier funcname)) :: args) -> function_call funcname args lower_expr_to_value ctx
         | _ -> Error ("Expected expression, got: " ^ (to_string expr)), ctx
 

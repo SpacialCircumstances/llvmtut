@@ -12,6 +12,7 @@ type ir_expr =
     | Div of value * value
     | Mul of value * value
     | FunctionCall of string * value list
+    | Read
     | Value of value
 
 type statement =
