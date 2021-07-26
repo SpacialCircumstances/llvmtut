@@ -8,6 +8,7 @@ let mdl = create_module context "tut"
 let builder = builder context
 let number_type = i64_type context
 let void_type = void_type context
+let zero = const_int number_type 0
 
 module ValueTable = CCHashtbl.Make(String)
 
@@ -50,14 +51,42 @@ let compile_expr ctx expr = match expr with
         let rf = ValueTable.find ctx.builtins "sl_read" in
         build_call rf [||] "readtmp" builder
 
-let compile_statement ctx st = match st with
+let compile_block ctx (statements, ret) compile_statement = 
+    List.iter (compile_statement ctx) statements;
+    let rv = compile_value ctx ret in
+    build_ret rv builder
+
+let rec compile_statement ctx st = match st with
     | Set (name, expr) -> 
         let value = compile_expr ctx expr in
         ValueTable.add ctx.values name value
     | Print value ->
         let value = compile_value ctx value in
         build_call (ValueTable.find ctx.builtins "sl_print") [|value|] "" builder |> ignore
-    | _ -> failwith "Not implemented"
+    | If (cond, if_true, if_false) ->
+        let cond_v = compile_value ctx cond in
+        let cond_cmp = build_icmp Icmp.Eq cond_v zero "condtmp" builder in
+        let main_block = insertion_block builder in
+        let func = block_parent main_block in
+        let true_block = append_block context "iftrue" func in
+        let false_block = append_block context "iffalse" func in
+        position_at_end true_block builder;
+        let true_val = compile_block ctx if_true compile_statement in
+        let true_block_final = insertion_block builder in
+        position_at_end false_block builder;
+        let false_val = compile_block ctx if_false compile_statement in
+        let false_block_final = insertion_block builder in
+        let final_block = append_block context "ifafter" func in
+        position_at_end final_block builder;
+        let phi = build_phi [ (true_val, true_block_final); (false_val, false_block_final) ] "ifphi" builder in
+        position_at_end main_block builder;
+        build_cond_br cond_cmp true_block false_block builder |> ignore;
+        position_at_end true_block_final builder;
+        build_br final_block builder |> ignore;
+        position_at_end false_block_final builder;
+        build_br final_block builder |> ignore;
+        position_at_end final_block builder;
+        phi |> ignore
 
 let compile_function ctx fname args statements retval =
     let f = declare_function fname (function_type number_type (Array.make (List.length args) number_type)) mdl in
@@ -66,9 +95,7 @@ let compile_function ctx fname args statements retval =
                                 ValueTable.add ctx.values av a) (params f);
     let block = append_block context "entry" f in
     position_at_end block builder;
-    List.iter (compile_statement ctx) statements;
-    let ret = compile_value ctx retval in
-    let _ = build_ret ret builder in
+    compile_block ctx (statements, retval) compile_statement |> ignore;
     Llvm_analysis.assert_valid_function f
 
 let compile_top_level ctx tl = match tl with
