@@ -49,8 +49,9 @@ let rec lower_block lower_statement lower_expr exprs ctx =
 
 let lower_do_block lower_statement expr ctx =
     match expr with
-        | Tree ((Atom (Identifier "do")) :: nodes) -> lower_block lower_statement lower_expression nodes ctx
-        | _ -> lower_expr_to_value expr ctx
+        | Tree ((Atom (Identifier "do")) :: nodes) -> 
+            List.fold_left (fun ctx e -> lower_statement e ctx) ctx nodes
+        | _ -> lower_statement expr ctx
 
 let rec lower_basic_statement statement ctx =
     match statement with
@@ -59,9 +60,9 @@ let rec lower_basic_statement statement ctx =
             lower_set name expr ctx
         | Tree ((Atom (Identifier "if")) :: condition :: if_true :: if_false :: []) ->
             let (l_cond, ctx) = lower_expr_to_value condition ctx in
-            let (l_if_true, true_ctx) = lower_do_block lower_basic_statement if_true (Context.create_child_context ctx) in
-            let (l_if_false, false_ctx) = lower_do_block lower_basic_statement if_false (Context.create_child_context ctx) in
-            let st = If (l_cond, (Context.get_statements true_ctx, l_if_true), (Context.get_statements false_ctx, l_if_false)) in
+            let true_ctx = lower_do_block lower_basic_statement if_true (Context.create_child_context ctx) in
+            let false_ctx = lower_do_block lower_basic_statement if_false (Context.create_child_context ctx) in
+            let st = If (l_cond, (Context.get_statements true_ctx), (Context.get_statements false_ctx)) in
             let ctx = ctx |> Context.integrate_child_context_errors true_ctx |> Context.integrate_child_context_errors false_ctx in 
             Context.add_statement ctx st
         | Tree ((Atom (Identifier "print")) :: expr :: []) -> 
@@ -85,10 +86,10 @@ let create_function_context funcname param_names ctx =
 
 let lower_top_statement statement ctx =
     match statement with
-        | Tree ((Atom (Identifier "defn")) :: (Atom (Identifier funcname)) :: (Tree params) :: body :: []) -> 
+        | Tree ((Atom (Identifier "defn")) :: (Atom (Identifier funcname)) :: (Tree params) :: body) -> 
             let param_names, ctx = get_parameters params ctx in
             let body_ctx = create_function_context funcname param_names ctx in
-            let value, body_ctx = lower_do_block lower_basic_statement body body_ctx in
+            let value, body_ctx = lower_block lower_basic_statement lower_expression body body_ctx in
             let func_block = Context.get_statements body_ctx, value in
             let ctx = Context.add_function ctx funcname { arity = List.length param_names } in
             Context.add_top_level ctx (DefFunction (funcname, param_names, func_block))

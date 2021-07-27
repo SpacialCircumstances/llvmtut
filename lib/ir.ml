@@ -18,7 +18,7 @@ type ir_expr =
 type statement =
     | Print of value
     | Set of string * ir_expr
-    | If of value * block * block
+    | If of value * statement list * statement list
 
 and block = statement list * value
 

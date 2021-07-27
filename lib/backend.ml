@@ -71,22 +71,20 @@ let rec compile_statement ctx st = match st with
         let true_block = append_block context "iftrue" func in
         let false_block = append_block context "iffalse" func in
         position_at_end true_block builder;
-        let true_val = compile_block ctx if_true compile_statement in
+        List.iter (compile_statement ctx) if_true;
         let true_block_final = insertion_block builder in
         position_at_end false_block builder;
-        let false_val = compile_block ctx if_false compile_statement in
+        List.iter (compile_statement ctx) if_false;
         let false_block_final = insertion_block builder in
         let final_block = append_block context "ifafter" func in
         position_at_end final_block builder;
-        let phi = build_phi [ (true_val, true_block_final); (false_val, false_block_final) ] "ifphi" builder in
         position_at_end main_block builder;
         build_cond_br cond_cmp true_block false_block builder |> ignore;
         position_at_end true_block_final builder;
         build_br final_block builder |> ignore;
         position_at_end false_block_final builder;
         build_br final_block builder |> ignore;
-        position_at_end final_block builder;
-        phi |> ignore
+        position_at_end final_block builder
 
 let compile_function ctx fname args statements retval =
     let f = declare_function fname (function_type number_type (Array.make (List.length args) number_type)) mdl in
