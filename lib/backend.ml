@@ -65,7 +65,7 @@ let rec compile_statement ctx st = match st with
         build_call (ValueTable.find ctx.builtins "sl_print") [|value|] "" builder |> ignore
     | If (cond, if_true, if_false) ->
         let cond_v = compile_value ctx cond in
-        let cond_cmp = build_icmp Icmp.Eq cond_v zero "condtmp" builder in
+        let cond_cmp = build_icmp Icmp.Ne cond_v zero "condtmp" builder in
         let main_block = insertion_block builder in
         let func = block_parent main_block in
         let true_block = append_block context "iftrue" func in
